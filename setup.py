@@ -47,7 +47,7 @@ setup(
     extras_require={
         'experimental': [],
         'models': [
-            'edward2 @ git+https://github.com/google/edward2.git#egg=edward2',
+            'edward2 @ git+https://github.com/mszarski/edward2',
             'pandas',
             'scipy',
         ],

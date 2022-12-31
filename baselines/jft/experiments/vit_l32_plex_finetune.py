@@ -125,7 +125,7 @@ def get_config():
 
 def get_sweep(hyper):
   """Sweep over datasets and relevant hyperparameters."""
-  checkpoints = ['/path/to/pretrained_model_ckpt.npz']
+  checkpoints = ['gs://plex-paper/plex_vit_large_imagenet21k.npz']
   use_jft = True  # whether to use JFT or I21K
   if use_jft:
   else:
@@ -196,11 +196,6 @@ def get_sweep(hyper):
   return hyper.product([
       hyper.chainit([
           cifar10_sweep,
-          cifar100_sweep,
-          imagenet_sweep,
-          imagenet_1shot_sweep,
-          imagenet_5shot_sweep,
-          imagenet_10shot_sweep
       ]),
       hyper.product([
           hyper.sweep('config.model_init', checkpoints),

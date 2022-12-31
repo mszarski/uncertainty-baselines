@@ -59,6 +59,11 @@ flags.DEFINE_string('tpu', None,
 
 FLAGS = flags.FLAGS
 
+import os
+os.environ['XLA_PYTHON_CLIENT_PREALLOCATE'] ='false'
+os.environ['XLA_PYTHON_CLIENT_ALLOCATOR']='platform'
+os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
+os.environ['XLA_FLAGS'] = '--xla_gpu_strict_conv_algorithm_picker=false'
 
 def main(config, output_dir):
 

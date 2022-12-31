@@ -52,6 +52,7 @@ def get_config():
   config.lr = ml_collections.ConfigDict()
   config.lr.warmup_steps = warmup
   config.total_steps = steps
+  config.batch_size = 128
 
   config.log_training_steps = 100
   config.log_eval_steps = 1000

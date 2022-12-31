@@ -15,4 +15,4 @@
 
 """Uncertainty baselines libraries for tensorflow_datasets."""
 
-from uncertainty_baselines.datasets.tfds.tfds_builder_from_sql_client_data import TFDSBuilderFromSQLClientData
+# from uncertainty_baselines.datasets.tfds.tfds_builder_from_sql_client_data import TFDSBuilderFromSQLClientData

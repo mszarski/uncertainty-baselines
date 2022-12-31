@@ -28,19 +28,30 @@ from experiments import sweep_utils  # local file import from baselines.jft
 def get_config():
   """Config for finetuning."""
   config = ml_collections.ConfigDict()
+  
+  size=384
+  steps=10_000
+  warmup=500
 
-  config.dataset = ''  # set in sweep
-  config.val_split = ''  # set in sweep
-  config.test_split = ''  # set in sweep
-  config.train_split = ''  # set in sweep
-  config.num_classes = None  # set in sweep
+  name = 'cifar10'
+  n_cls = 10
+  pp_common = '|value_range(-1, 1)'
+  pp_common += f'|onehot({n_cls}, key="label", key_result="labels")'
+  pp_common += '|keep(["image", "labels", "id"])'
+  pp_train = f'decode|inception_crop({size})|flip_lr' + pp_common
+  pp_eval = f'decode|resize({size})' + pp_common
 
-  config.batch_size = 512
-  config.total_steps = None  # set in sweep
-
-  config.pp_train = ''  # set in sweep
-  config.pp_eval = ''  # set in sweep
-  config.shuffle_buffer_size = 50_000  # Per host, so small-ish is ok.
+  config = ml_collections.ConfigDict()
+  config.dataset = name
+  config.train_split = 'train[:98%]'
+  config.pp_train = pp_train
+  config.val_split = 'train[98%:]'
+  config.test_split = 'test'
+  config.pp_eval = pp_eval
+  config.num_classes = n_cls
+  config.lr = ml_collections.ConfigDict()
+  config.lr.warmup_steps = warmup
+  config.total_steps = steps
 
   config.log_training_steps = 100
   config.log_eval_steps = 1000
@@ -50,24 +61,28 @@ def get_config():
   config.prefetch_to_device = 2
   config.trial = 0
 
-  # Subpopulation shift evaluation. Parameters set in the sweep. If
-  # `config.subpopl_cifar_data_file` is None, this evaluation is skipped.
-  config.subpopl_cifar_data_file = None
-  config.pp_eval_subpopl_cifar = None
-
-  # OOD evaluation. They're all set in the sweep.
-  config.ood_datasets = []
-  config.ood_num_classes = []
-  config.ood_split = ''
-  config.ood_methods = []
-  config.pp_eval_ood = []
-  config.eval_on_cifar_10h = False
-  config.pp_eval_cifar_10h = ''
-  config.eval_on_imagenet_real = False
-  config.pp_eval_imagenet_real = ''
+  # OOD evaluation
+  # ood_split is the data split for both the ood_dataset and the dataset.
+  config.ood_datasets = ['cifar100', 'svhn_cropped']
+  config.ood_num_classes = [100, 10]
+  config.ood_split = 'test'
+  config.ood_methods = ['msp', 'entropy', 'maha', 'rmaha', 'mlogit']
+  pp_eval_ood = []
+  for num_classes in config.ood_num_classes:
+    if num_classes > config.num_classes:
+      # Note that evaluation_fn ignores the entries with all zero labels for
+      # evaluation. When num_classes > n_cls, we should use onehot{num_classes},
+      # otherwise the labels that are greater than n_cls will be encoded with
+      # all zeros and then be ignored.
+      pp_eval_ood.append(
+          pp_eval.replace(f'onehot({config.num_classes}',
+                          f'onehot({num_classes}'))
+    else:
+      pp_eval_ood.append(pp_eval)
+  config.pp_eval_ood = pp_eval_ood
 
   # Model section
-  config.model_init = ''  # set in sweep
+  config.model_init = 'gs://plex-paper/plex_vit_large_imagenet21k.npz'
   config.model = ml_collections.ConfigDict()
   config.model.patches = ml_collections.ConfigDict()
   config.model.patches.size = [32, 32]
@@ -87,11 +102,11 @@ def get_config():
   config.model.multiclass = True
   config.model.temperature = 0.2
   config.model.mc_samples = 1000
-  config.model.num_factors = 0  # set in sweep
+  config.model.num_factors = 0 #for cifar10 there are only 10 classes so full diagonal is okay
   config.model.param_efficient = False
 
   # BatchEnsemble
-  config.model.transformer.be_layers = (22, 23)  # Set in sweep.
+  config.model.transformer.be_layers = (21, 22, 23)  # Set in sweep.
   config.model.transformer.ens_size = 3  # Set in sweep.
   config.model.transformer.random_sign_init = -0.5
   # TODO(trandustin): Remove `ensemble_attention` hparam once we no longer
@@ -117,93 +132,7 @@ def get_config():
   config.loss = 'softmax_xent'
 
   config.lr = ml_collections.ConfigDict()
-  config.lr.base = 0.001  # set in sweep
+  config.lr.base = 0.01  # set in sweep
   config.lr.warmup_steps = 500
   config.lr.decay_type = 'cosine'
   return config
-
-
-def get_sweep(hyper):
-  """Sweep over datasets and relevant hyperparameters."""
-  checkpoints = ['gs://plex-paper/plex_vit_large_imagenet21k.npz']
-  use_jft = False  # whether to use JFT or I21K
-  if not use_jft:
-    ensemble_attention = False
-    be_layers = (21, 22, 23)
-    ens_size = 3
-
-  # Apply a learning rate sweep following Table 4 of Vision Transformer paper.
-  cifar10_sweep = sweep_utils.cifar10(hyper)
-  cifar10_sweep.extend([
-      hyper.sweep('config.model.num_factors', [0]),
-      hyper.sweep('config.model.temperature',
-                  [0.15, 0.3, 0.5, 0.75, 1.0, 1.5, 2.0]),
-      hyper.sweep('config.lr.base', [0.03, 0.01, 0.003, 0.001]),
-  ])
-  cifar10_sweep = hyper.product(cifar10_sweep)
-
-  cifar100_sweep = sweep_utils.cifar100(hyper)
-  cifar100_sweep.extend([
-      hyper.sweep('config.model.num_factors', [0]),
-      hyper.sweep('config.model.temperature',
-                  [0.15, 0.3, 0.5, 0.75, 1.0, 1.5, 2.0]),
-      hyper.sweep('config.lr.base', [0.03, 0.01, 0.003, 0.001]),
-  ])
-  cifar100_sweep = hyper.product(cifar100_sweep)
-
-  imagenet_sweep = sweep_utils.imagenet(hyper, steps=40000)
-  imagenet_sweep.extend([
-      hyper.sweep('config.model.num_factors', [15]),
-      hyper.sweep('config.lr.base', [0.06, 0.03, 0.01]),
-      hyper.sweep('config.model.temperature', [1.25, 2.0, 2.5, 3.0]),
-  ])
-  imagenet_sweep = hyper.product(imagenet_sweep)
-
-  imagenet_1shot_sweep = hyper.product([
-      hyper.chainit([
-          hyper.product(sweep_utils.imagenet_fewshot(
-              hyper, fewshot='1shot', steps=200, warmup=s))
-          for s in [1, 5, 10]]),
-      hyper.sweep('config.lr.base',
-                  [0.04, 0.03, 0.02]),
-      hyper.sweep('config.model.temperature',
-                  [0.25, 0.5, 0.75, 1.0, 2.0, 3.0])
-  ])
-
-  imagenet_5shot_sweep = hyper.product([
-      hyper.chainit([
-          hyper.product(sweep_utils.imagenet_fewshot(
-              hyper, fewshot='5shot', steps=1000, warmup=s))
-          for s in [1, 10, 20, 30]]),
-      hyper.sweep('config.lr.base',
-                  [0.05, 0.04, 0.03]),
-      hyper.sweep('config.model.temperature',
-                  [0.25, 0.5, 0.75, 1.0, 2.0, 3.0])
-  ])
-
-  imagenet_10shot_sweep = hyper.product([
-      hyper.chainit([
-          hyper.product(sweep_utils.imagenet_fewshot(
-              hyper, fewshot='10shot', steps=2000, warmup=s))
-          for s in [30, 40, 50]]),
-      hyper.sweep('config.lr.base',
-                  [0.06, 0.05, 0.03]),
-      hyper.sweep('config.model.temperature',
-                  [0.25, 0.5, 0.75, 1.0, 2.0, 3.0])
-  ])
-
-  return hyper.product([
-      hyper.chainit([
-          cifar10_sweep
-      ]),
-      hyper.product([
-          hyper.sweep('config.model_init', checkpoints),
-          hyper.fixed(
-              'config.model.transformer.be_layers', be_layers, length=1),
-          hyper.fixed(
-              'config.model.transformer.ensemble_attention',
-              ensemble_attention,
-              length=1),
-          hyper.fixed('config.model.transformer.ens_size', ens_size, length=1),
-      ])
-  ])

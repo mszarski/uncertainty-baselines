@@ -39,7 +39,7 @@ setup(
          '#egg=robustness_metrics'),
         # Required because RM does not do lazy loading and RM requires TFP.
         'tensorflow_probability',
-        'tfds',
+        'tensorflow-datasets',
         'urllib3',
         'zipp',
         'dm-haiku'

@@ -195,7 +195,7 @@ def get_sweep(hyper):
 
   return hyper.product([
       hyper.chainit([
-          cifar10_sweep,
+          cifar10_sweep
       ]),
       hyper.product([
           hyper.sweep('config.model_init', checkpoints),

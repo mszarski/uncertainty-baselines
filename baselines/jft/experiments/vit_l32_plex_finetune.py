@@ -108,7 +108,7 @@ def get_config():
   config.model.param_efficient = False
 
   # BatchEnsemble
-  config.model.transformer.be_layers = (21, 22, 23)  # Set in sweep.
+  config.model.transformer.be_layers = (22, 23)  # Set in sweep.
   config.model.transformer.ens_size = 3  # Set in sweep.
   config.model.transformer.random_sign_init = -0.5
   # TODO(trandustin): Remove `ensemble_attention` hparam once we no longer

@@ -127,8 +127,7 @@ def get_sweep(hyper):
   """Sweep over datasets and relevant hyperparameters."""
   checkpoints = ['gs://plex-paper/plex_vit_large_imagenet21k.npz']
   use_jft = True  # whether to use JFT or I21K
-  if use_jft:
-  else:
+  if not use_jft:
     ensemble_attention = False
     be_layers = (21, 22, 23)
     ens_size = 3

@@ -52,7 +52,7 @@ def get_config():
   config.lr = ml_collections.ConfigDict()
   config.lr.warmup_steps = warmup
   config.total_steps = steps
-  config.batch_size = 256
+  config.batch_size = 64
   config.shuffle_buffer_size = 50_000
 
   config.log_training_steps = 100
@@ -134,7 +134,7 @@ def get_config():
   config.loss = 'softmax_xent'
 
   config.lr = ml_collections.ConfigDict()
-  config.lr.base = 0.01  # set in sweep
+  config.lr.base = 0.03  # set in sweep
   config.lr.warmup_steps = 500
   config.lr.decay_type = 'cosine'
   return config
